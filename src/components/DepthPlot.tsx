@@ -101,10 +101,7 @@ export function DepthPlot({ rows }: Props) {
         <p className="text-gray-400 text-sm">No valid data to plot for this metric.</p>
       ) : (
         <ResponsiveContainer width="100%" height={400}>
-          <ScatterChart
-            layout="vertical"
-            margin={{ top: 10, right: 30, bottom: 30, left: 40 }}
-          >
+          <ScatterChart layout="vertical" margin={{ top: 10, right: 30, bottom: 30, left: 40 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis type="number" dataKey="value" name={metricLabel} domain={['auto', 'auto']}>
               <Label value={metricLabel} offset={-10} position="insideBottom" />
