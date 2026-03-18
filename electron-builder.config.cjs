@@ -3,6 +3,8 @@ module.exports = {
   productName: 'OSLab',
   files: ['dist/web/**/*', 'dist/compiled/*'],
   directories: { output: 'dist/release' },
+  publish: { provider: 'github', releaseType: 'release' },
+  releaseInfo: { releaseNotes: process.env.RELEASE_NOTES },
   icon: 'build/icon.png',
   mac: { category: 'public.app-category.science' },
   win: { target: 'nsis' },

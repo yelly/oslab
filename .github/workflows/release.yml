@@ -14,11 +14,8 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            artifact: 'dist/release/*.dmg'
           - os: windows-latest
-            artifact: 'dist/release/*.exe'
           - os: ubuntu-latest
-            artifact: 'dist/release/*.AppImage'
 
     runs-on: ${{ matrix.os }}
 
@@ -39,8 +36,6 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run electron:build
-
       - name: Extract tag annotation
         id: tag
         run: |
@@ -50,9 +45,7 @@ jobs:
           echo "$delimiter" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ matrix.artifact }}
-          body: ${{ steps.tag.outputs.body }}
+      - run: npm run electron:build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ steps.tag.outputs.body }}
