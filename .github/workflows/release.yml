@@ -32,6 +32,11 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Exclude workspace from Windows Defender
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: Add-MpPreference -ExclusionPath "${{ github.workspace }}"
+
       - run: npm ci
 
       - run: npm run electron:build
@@ -49,3 +54,5 @@ jobs:
         with:
           files: ${{ matrix.artifact }}
           body: ${{ steps.tag.outputs.body }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

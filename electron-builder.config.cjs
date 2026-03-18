@@ -6,5 +6,5 @@ module.exports = {
   icon: 'build/icon.png',
   mac: { category: 'public.app-category.science' },
   win: { target: 'nsis' },
-  linux: { target: 'AppImage' },
+  linux: { target: 'AppImage', category: 'Science' },
 }
