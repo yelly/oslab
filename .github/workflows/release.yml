@@ -24,6 +24,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -34,6 +36,16 @@ jobs:
 
       - run: npm run electron:build
 
+      - name: Extract tag annotation
+        id: tag
+        run: |
+          delimiter="$(openssl rand -hex 8)"
+          echo "body<<$delimiter" >> "$GITHUB_OUTPUT"
+          git tag -l --format='%(contents)' "${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          echo "$delimiter" >> "$GITHUB_OUTPUT"
+        shell: bash
+
       - uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.artifact }}
+          body: ${{ steps.tag.outputs.body }}
