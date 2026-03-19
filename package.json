@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:electron": "cross-env VITE_BUILD_TARGET=electron vite build",
-    "electron:compile": "esbuild electron/main.ts electron/preload.ts --platform=node --format=cjs --out-extension:.js=.cjs --outdir=dist/compiled",
+    "electron:compile": "esbuild electron/main.ts electron/preload.ts --platform=node --format=cjs --bundle --external:electron --out-extension:.js=.cjs --outdir=dist/compiled",
     "preview": "vite preview",
     "lint": "eslint src",
     "format": "prettier --write .",
@@ -45,5 +45,8 @@
     "vitest": "^4.1.0",
     "wait-on": "^9.0.4"
   },
-  "main": "dist/compiled/main.cjs"
+  "main": "dist/compiled/main.cjs",
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  }
 }
