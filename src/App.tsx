@@ -4,12 +4,15 @@ import { FileUpload } from './components/FileUpload'
 import { SampleReview, type SampleAction } from './components/SampleReview'
 import { ResultsTable, type ResultRow } from './components/ResultsTable'
 import { DepthPlot, type PlotRow } from './components/DepthPlot'
+import { DownloadPage } from './components/DownloadPage'
+
+const IS_ELECTRON = import.meta.env.VITE_BUILD_TARGET === 'electron'
 import type { ParsedFile } from './lib/parser'
 import { parseSampleName, getTotalDepth, getGroupKey } from './lib/naming'
 import { processSample, averageResults, type SampleResult } from './lib/processor'
 import { toExportRow, exportToCsv, downloadCsv } from './lib/export'
 
-type Step = 'upload' | 'review' | 'results'
+type Step = 'upload' | 'review' | 'results' | 'download'
 
 interface ProcessedData {
   tableRows: ResultRow[]
@@ -121,7 +124,7 @@ export default function App() {
   }
 
   const steps = ['Upload', 'Review', 'Results']
-  const stepIndex = { upload: 0, review: 1, results: 2 }[step]
+  const stepIndex = { upload: 0, review: 1, results: 2, download: -1 }[step]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,7 +140,7 @@ export default function App() {
               {steps.map((s, i) => (
                 <React.Fragment key={s}>
                   <span
-                    className={`text-sm px-3 py-1 rounded-full ${
+                    className={`text-sm px-3 py-1 rounded-full transition-colors duration-200 ${
                       i === stepIndex
                         ? 'bg-indigo-100 text-indigo-700 font-medium'
                         : i < stepIndex
@@ -151,6 +154,14 @@ export default function App() {
                 </React.Fragment>
               ))}
             </nav>
+            {!IS_ELECTRON && (
+              <button
+                onClick={() => setStep('download')}
+                className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                Download
+              </button>
+            )}
             <button
               onClick={() => setShowHelp(true)}
               className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
@@ -163,55 +174,59 @@ export default function App() {
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-8">
-        {step === 'upload' && <FileUpload onFilesLoaded={handleFilesLoaded} />}
+        <div key={step} className="step-enter">
+          {step === 'download' && <DownloadPage onBack={() => setStep('upload')} />}
 
-        {step === 'review' && <SampleReview files={files} onProceed={handleProceed} />}
+          {step === 'upload' && <FileUpload onFilesLoaded={handleFilesLoaded} />}
 
-        {step === 'results' && processed && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-800">
-                  Results — {processed.siteName}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {processed.tableRows.length} samples · depths{' '}
-                  {processed.plotRows.length > 0
-                    ? `${Math.min(...processed.plotRows.map((r) => r.depth))}–${Math.max(...processed.plotRows.map((r) => r.depth))} cm`
-                    : 'unknown'}
-                </p>
+          {step === 'review' && <SampleReview files={files} onProceed={handleProceed} />}
+
+          {step === 'results' && processed && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    Results — {processed.siteName}
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    {processed.tableRows.length} samples · depths{' '}
+                    {processed.plotRows.length > 0
+                      ? `${Math.min(...processed.plotRows.map((r) => r.depth))}–${Math.max(...processed.plotRows.map((r) => r.depth))} cm`
+                      : 'unknown'}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExport}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={handleStartOver}
+                    className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    Start Over
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleExport}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-                >
-                  Export CSV
-                </button>
-                <button
-                  onClick={handleStartOver}
-                  className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors"
-                >
-                  Start Over
-                </button>
+
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-6">
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+                  <h3 className="font-medium text-gray-700">Measurements</h3>
+                </div>
+                <ResultsTable rows={processed.tableRows} />
               </div>
+
+              {processed.plotRows.length >= 2 && (
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                  <h3 className="font-medium text-gray-700 mb-4">Depth Profile</h3>
+                  <DepthPlot rows={processed.plotRows} />
+                </div>
+              )}
             </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-6">
-              <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-                <h3 className="font-medium text-gray-700">Measurements</h3>
-              </div>
-              <ResultsTable rows={processed.tableRows} />
-            </div>
-
-            {processed.plotRows.length >= 2 && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <h3 className="font-medium text-gray-700 mb-4">Depth Profile</h3>
-                <DepthPlot rows={processed.plotRows} />
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
   )
