@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { HelpModal } from './components/HelpModal'
 import { FileUpload } from './components/FileUpload'
-import { SampleReview, type SampleAction } from './components/SampleReview'
+import { SampleReview, type SampleAction, type ReviewState } from './components/SampleReview'
 import { ResultsTable, type ResultRow } from './components/ResultsTable'
 import { DepthPlot, type PlotRow } from './components/DepthPlot'
 import { DownloadPage } from './components/DownloadPage'
@@ -25,11 +25,15 @@ function processFiles(
   files: ParsedFile[],
   siteName: string,
   actions: Record<string, SampleAction>,
+  runDepthOverrides: Record<string, number>,
 ): ProcessedData {
   // Collect all samples, apply actions
   const activeSamples = files
     .flatMap((f) => f.samples)
-    .filter((s) => actions[s.label] === 'include')
+    .filter((s) => {
+      const a = actions[s.label]
+      return a === 'include' || (typeof a === 'object' && 'renamed' in a)
+    })
 
   // Compute results for each sample
   const sampleResults: { result: SampleResult; label: string; runName: string }[] = []
@@ -39,6 +43,7 @@ function processFiles(
       const effectiveLabel =
         typeof action === 'object' && 'renamed' in action ? action.renamed : s.label
       const result = processSample(effectiveLabel, s.rows)
+      // Use the original runName so that run depth overrides apply correctly
       sampleResults.push({ result, label: effectiveLabel, runName: s.runName })
     } catch {
       // Skip samples that fail processing
@@ -51,10 +56,10 @@ function processFiles(
     { replicates: { result: SampleResult; replicate: string }[]; depth: number | null }
   >()
   for (const { result, label, runName } of sampleResults) {
-    const parsed = parseSampleName(label, runName)
+    const parsed = parseSampleName(label, runName, siteName, runDepthOverrides)
     if (!parsed) continue
-    const depth = getTotalDepth(parsed, siteName)
-    const key = getGroupKey(parsed, siteName)
+    const depth = getTotalDepth(parsed, siteName, runDepthOverrides)
+    const key = getGroupKey(parsed, siteName, runDepthOverrides)
     const existing = groups.get(key) ?? { replicates: [], depth }
     existing.replicates.push({ result, replicate: parsed.replicate })
     groups.set(key, existing)
@@ -71,10 +76,10 @@ function processFiles(
     const results = group.replicates.map((r) => r.result)
     const isAveraged = results.length > 1
 
-    const baseLabel = results[0].label.replace(/[a-z]$/, '')
+    const baseLabel = results[0].label.replace(/[a-z]$/i, '')
     const letters = group.replicates.map((r) => r.replicate).join('/')
-    const label = isAveraged ? `${baseLabel}${letters}` : results[0].label
-    const finalResult = isAveraged ? averageResults(results, label) : results[0]
+    const label = `${baseLabel}${letters}`
+    const finalResult = isAveraged ? averageResults(results, label) : { ...results[0], label }
 
     tableRows.push({ depth: group.depth, result: finalResult, isAveraged })
     if (group.depth !== null) {
@@ -97,23 +102,27 @@ function processFiles(
 export default function App() {
   const [step, setStep] = useState<Step>('upload')
   const [files, setFiles] = useState<ParsedFile[]>([])
-  const [processed, setProcessed] = useState<ProcessedData | null>(null)
+  const [reviewState, setReviewState] = useState<ReviewState | undefined>()
+  const [processed, setProcessed] = useState<ProcessedData | undefined>()
   const [showHelp, setShowHelp] = useState(false)
 
   const handleFilesLoaded = (loaded: ParsedFile[]) => {
     setFiles(loaded)
+    setReviewState(undefined)
     setStep('review')
   }
 
-  const handleProceed = (siteName: string, actions: Record<string, SampleAction>) => {
-    const data = processFiles(files, siteName, actions)
+  const handleProceed = (state: ReviewState) => {
+    setReviewState(state)
+    const data = processFiles(files, state.siteName, state.actions, state.runDepthOverrides)
     setProcessed(data)
     setStep('results')
   }
 
   const handleStartOver = () => {
     setFiles([])
-    setProcessed(null)
+    setReviewState(undefined)
+    setProcessed(undefined)
     setStep('upload')
   }
 
@@ -179,7 +188,14 @@ export default function App() {
 
           {step === 'upload' && <FileUpload onFilesLoaded={handleFilesLoaded} />}
 
-          {step === 'review' && <SampleReview files={files} onProceed={handleProceed} />}
+          {step === 'review' && (
+            <SampleReview
+              files={files}
+              initialState={reviewState}
+              onBack={() => handleStartOver()}
+              onProceed={handleProceed}
+            />
+          )}
 
           {step === 'results' && processed && (
             <div>
@@ -196,6 +212,12 @@ export default function App() {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => setStep('review')}
+                    className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    ← Back
+                  </button>
                   <button
                     onClick={handleExport}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"

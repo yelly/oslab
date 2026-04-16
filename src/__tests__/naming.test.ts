@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseSampleName,
   detectSiteName,
+  detectSiteNameFromLabels,
   getRunDepth,
   getTotalDepth,
   getGroupKey,
@@ -21,10 +22,46 @@ describe('parseSampleName', () => {
     expect(result!.replicate).toBe('b')
   })
 
+  it('normalises replicate to lowercase', () => {
+    expect(parseSampleName('BED40150_40B', 'BED40150')!.replicate).toBe('b')
+    expect(parseSampleName('BED40150_40A', 'BED40150')!.replicate).toBe('a')
+  })
+
+  it('parses site-prefixed label when siteName provided', () => {
+    // Label uses site prefix (BED40) instead of run name (BED40150)
+    const result = parseSampleName('BED40_40a', 'BED40150', 'BED40')
+    expect(result).not.toBeNull()
+    expect(result!.runName).toBe('BED40150')
+    expect(result!.offset).toBe(40)
+    expect(result!.replicate).toBe('a')
+  })
+
+  it('returns null for truly non-conforming names even with siteName', () => {
+    expect(parseSampleName('OTHER_40a', 'BED40150', 'BED40')).toBeNull()
+  })
+
+  it('parses compound prefix label when runDepthOverrides provided', () => {
+    // Label uses '{siteName}{runDepth}_' e.g. 'BED42150_40a' with site 'BED42' and override depth 150
+    const result = parseSampleName('BED42150_40a', 'D42C150300', 'BED42', { D42C150300: 150 })
+    expect(result).not.toBeNull()
+    expect(result!.offset).toBe(40)
+    expect(result!.replicate).toBe('a')
+    expect(result!.runName).toBe('D42C150300')
+  })
+
+  it('parses compound prefix label when depth derivable from run name', () => {
+    // runName 'BED42150' with site 'BED42' → runDepth 150 → prefix 'BED42150_'
+    const result = parseSampleName('BED42150_40a', 'BED42150', 'BED42')
+    expect(result).not.toBeNull()
+    expect(result!.offset).toBe(40)
+    expect(result!.replicate).toBe('a')
+  })
+
   it('returns null for non-conforming names', () => {
     expect(parseSampleName('F1', 'BED40150')).toBeNull()
     expect(parseSampleName('f2', 'BED40150')).toBeNull()
     expect(parseSampleName('BED40150_40', 'BED40150')).toBeNull() // no letter
+    expect(parseSampleName('BED40150_a', 'BED40150')).toBeNull() // no offset digits
   })
 
   it('returns null when label does not start with runName', () => {
@@ -51,6 +88,20 @@ describe('detectSiteName', () => {
   })
 })
 
+describe('detectSiteNameFromLabels', () => {
+  it('extracts common prefix of label prefixes', () => {
+    expect(detectSiteNameFromLabels(['BED42_0a', 'BED42_0b', 'BED42_12a'])).toBe('BED42')
+  })
+
+  it('finds common prefix across mixed-prefix labels', () => {
+    expect(detectSiteNameFromLabels(['BED42_0a', 'BED42200_0b'])).toBe('BED42')
+  })
+
+  it('returns empty string for empty input', () => {
+    expect(detectSiteNameFromLabels([])).toBe('')
+  })
+})
+
 describe('getRunDepth', () => {
   it('extracts run depth from run name', () => {
     expect(getRunDepth('BED40150', 'BED40')).toBe(150)
@@ -71,6 +122,17 @@ describe('getTotalDepth', () => {
   it('computes depth for 300 run', () => {
     const name = parseSampleName('BED40300_10a', 'BED40300')!
     expect(getTotalDepth(name, 'BED40')).toBe(310) // 300 + 10
+  })
+
+  it('respects runDepthOverrides', () => {
+    const name = parseSampleName('BED40_40a', 'BED40150', 'BED40')!
+    // Auto-detected run depth would be 150; override to 200
+    expect(getTotalDepth(name, 'BED40', { BED40150: 200 })).toBe(240)
+  })
+
+  it('computes depth via site-prefix label without override', () => {
+    const name = parseSampleName('BED42_0a', 'BED420150', 'BED42')!
+    expect(getTotalDepth(name, 'BED42')).toBe(150) // 150 + 0
   })
 })
 

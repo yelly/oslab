@@ -5,20 +5,35 @@ export interface SampleName {
   replicate: string // 'a', 'b', etc.
 }
 
-// Try to parse a label given the known run name.
-// Label must be "{runName}_{offset}{letter}".
-export function parseSampleName(label: string, runName: string): SampleName | null {
-  const prefix = runName + '_'
-  if (!label.startsWith(prefix)) return null
-  const rest = label.slice(prefix.length)
-  const m = rest.match(/^(\d+)([a-z])$/i)
-  if (!m) return null
-  return {
-    raw: label,
-    runName,
-    offset: parseInt(m[1], 10),
-    replicate: m[2],
+// Try to parse a label given the known run name and optional site name.
+// Accepts "{runName}_{offset}{letter}" (standard), "{siteName}_{offset}{letter}"
+// (site-prefixed), or "{siteName}{runDepth}_{offset}{letter}" (compound prefix,
+// used when the label encodes both the site name and the run depth together).
+export function parseSampleName(
+  label: string,
+  runName: string,
+  siteName?: string,
+  runDepthOverrides?: Record<string, number>,
+): SampleName | null {
+  const tryPrefix = (prefix: string): SampleName | null => {
+    if (!label.startsWith(prefix)) return null
+    const rest = label.slice(prefix.length)
+    const m = rest.match(/^(\d+)([a-z])$/i)
+    if (!m) return null
+    return {
+      raw: label,
+      runName,
+      offset: parseInt(m[1], 10),
+      replicate: m[2].toLowerCase(),
+    }
   }
+  const result = tryPrefix(runName + '_') ?? (siteName ? tryPrefix(siteName + '_') : null)
+  if (result) return result
+  if (siteName) {
+    const runDepth = runDepthOverrides?.[runName] ?? getRunDepth(runName, siteName)
+    if (runDepth !== null) return tryPrefix(siteName + runDepth + '_')
+  }
+  return null
 }
 
 // Get run depth from run name given the site name.
@@ -51,15 +66,46 @@ export function detectSiteName(runNames: string[]): string {
   return prefix
 }
 
-// Calculate total depth in cm.
-export function getTotalDepth(name: SampleName, siteName: string): number | null {
-  const runDepth = getRunDepth(name.runName, siteName)
+// Infer a site name from sample labels by taking the longest common prefix of
+// the part of each label before the last underscore. Useful as a fallback when
+// the run-name heuristic over-shoots (e.g. "BED420150" → "BED420" when labels
+// actually use the shorter prefix "BED42").
+export function detectSiteNameFromLabels(labels: string[]): string {
+  const prefixes = labels
+    .map((l) => {
+      const idx = l.lastIndexOf('_')
+      return idx > 0 ? l.slice(0, idx) : ''
+    })
+    .filter((p) => p.length > 0)
+  if (prefixes.length === 0) return ''
+  let prefix = prefixes[0]
+  for (const p of prefixes.slice(1)) {
+    let i = 0
+    while (i < prefix.length && i < p.length && prefix[i] === p[i]) i++
+    prefix = prefix.slice(0, i)
+    if (!prefix) break
+  }
+  return prefix
+}
+
+// Calculate total depth in cm. runDepthOverrides allows manual correction of
+// the run depth when it cannot be inferred from the run name alone.
+export function getTotalDepth(
+  name: SampleName,
+  siteName: string,
+  runDepthOverrides?: Record<string, number>,
+): number | null {
+  const runDepth = runDepthOverrides?.[name.runName] ?? getRunDepth(name.runName, siteName)
   if (runDepth === null) return null
   return runDepth + name.offset
 }
 
 // Get group key for grouping replicates at the same depth.
-export function getGroupKey(name: SampleName, siteName: string): string {
-  const depth = getTotalDepth(name, siteName)
+export function getGroupKey(
+  name: SampleName,
+  siteName: string,
+  runDepthOverrides?: Record<string, number>,
+): string {
+  const depth = getTotalDepth(name, siteName, runDepthOverrides)
   return `${siteName}@${depth ?? name.runName + '_' + name.offset}`
 }

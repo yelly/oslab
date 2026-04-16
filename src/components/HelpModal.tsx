@@ -97,6 +97,8 @@ export function HelpModal({ onClose }: Props) {
                 </thead>
                 <tbody>
                   {[
+                    ['BED40000_0a', 'BED40', '0 cm', '0 cm', '0 cm', 'a'],
+                    ['BED40000_10a', 'BED40', '0 cm', '10 cm', '10 cm', 'a'],
                     ['BED40150_40a', 'BED40', '150 cm', '40 cm', '190 cm', 'a'],
                     ['BED40150_40b', 'BED40', '150 cm', '40 cm', '190 cm', 'b'],
                     ['BED40300_10a', 'BED40', '300 cm', '10 cm', '310 cm', 'a'],
@@ -117,6 +119,64 @@ export function HelpModal({ onClose }: Props) {
             </div>
             <p className="mt-2 text-gray-500">
               All replicates at the same total depth (any letter suffix) are averaged together.
+            </p>
+          </section>
+
+          {/* Review panel */}
+          <section>
+            <h3 className="font-semibold text-gray-900 mb-2">Working with the review panel</h3>
+
+            <h4 className="font-medium text-gray-800 mt-3 mb-1">Site name</h4>
+            <p className="text-gray-600">
+              The site name is auto-detected from the common prefix of your run names (e.g.{' '}
+              <code className="bg-gray-100 px-1 rounded">BED40150</code> and{' '}
+              <code className="bg-gray-100 px-1 rounded">BED40300</code> → site{' '}
+              <code className="bg-gray-100 px-1 rounded">BED40</code>). If detection isn't right,
+              edit it directly — the sample list updates immediately.
+            </p>
+
+            <h4 className="font-medium text-gray-800 mt-3 mb-1">Run depth</h4>
+            <p className="text-gray-600">
+              The run depth is normally inferred from the run name by stripping the site prefix
+              (e.g. <code className="bg-gray-100 px-1 rounded">BED40150</code> → 150 cm). If the run
+              name doesn't encode a depth — or if it's wrong — type the correct value into the run
+              depth box. The field is highlighted in blue when overridden, and the auto-detected
+              value is shown alongside for reference. Clearing the field reverts to auto-detection.
+            </p>
+
+            <h4 className="font-medium text-gray-800 mt-3 mb-1">Flagged samples</h4>
+            <p className="mb-1.5 text-gray-600">
+              Samples highlighted in amber couldn't be matched to the current site name and run
+              depth. Each one must be resolved before you can proceed:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-gray-600">
+              <li>
+                <span className="font-medium text-gray-800">Rename</span> — assign a standard-format
+                label so the sample is included in the results. If an offset and replicate can be
+                inferred from the original label, the rename field is pre-filled with a suggestion.
+              </li>
+              <li>
+                <span className="font-medium text-gray-800">Test sample</span> — marks the sample as
+                a test measurement; it appears in the review list but is excluded from the results.
+              </li>
+              <li>
+                <span className="font-medium text-gray-800">Drop</span> — excludes the sample
+                entirely.
+              </li>
+            </ul>
+            <p className="mt-1.5 text-gray-600">
+              Any action can be undone with the{' '}
+              <span className="font-medium text-gray-800">undo</span> link. Adjusting the site name
+              or run depth will automatically clear actions on samples that become conforming.
+            </p>
+
+            <h4 className="font-medium text-gray-800 mt-3 mb-1">
+              Multiple runs of the same sample
+            </h4>
+            <p className="text-gray-600">
+              If the same sample label appears an exact multiple of 7 times (i.e. it was processed
+              more than once), only the last 7 rows are used. A warning is shown at the top of the
+              review panel.
             </p>
           </section>
 

@@ -72,20 +72,28 @@ export function parseSumFile(content: string, filename: string): ParsedFile {
 
   fixDarkRows(allRows)
 
-  const samples: RawSample[] = []
-  if (allRows.length % 7 !== 0) {
-    warnings.push(
-      `Row count (${allRows.length}) is not a multiple of 7; some samples may be incomplete.`,
-    )
+  // Group rows by label in order of first appearance, then validate each group.
+  const rowsByLabel = new Map<string, RawRow[]>()
+  for (const row of allRows) {
+    if (!rowsByLabel.has(row.label)) rowsByLabel.set(row.label, [])
+    rowsByLabel.get(row.label)!.push(row)
   }
-  for (let i = 0; i + 7 <= allRows.length; i += 7) {
-    const chunk = allRows.slice(i, i + 7)
-    const labels = [...new Set(chunk.map((r) => r.label))]
-    const label = labels[0]
-    if (labels.length > 1) {
-      warnings.push(`Mixed labels in sample group at row ${i}: ${labels.join(', ')}. Using first.`)
+
+  const samples: RawSample[] = []
+  for (const [label, rows] of rowsByLabel) {
+    if (rows.length % 7 === 0 && rows.length > 7) {
+      warnings.push(
+        `Sample "${label}" has ${rows.length} rows (${rows.length / 7} runs); using the last 7.`,
+      )
+      samples.push({ label, rows: rows.slice(-7), runName })
+    } else if (rows.length !== 7) {
+      warnings.push(
+        `Sample "${label}" has ${rows.length} row${rows.length === 1 ? '' : 's'} (expected 7); skipping.`,
+      )
+      continue
+    } else {
+      samples.push({ label, rows, runName })
     }
-    samples.push({ label, rows: chunk, runName })
   }
 
   return { runName, originalFilename: filename, samples, parseWarnings: warnings }
