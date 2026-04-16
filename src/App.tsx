@@ -117,6 +117,7 @@ export default function App() {
     const data = processFiles(files, state.siteName, state.actions, state.runDepthOverrides)
     setProcessed(data)
     setStep('results')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleStartOver = () => {
