@@ -244,7 +244,7 @@ export default function App() {
               {processed.plotRows.length >= 2 && (
                 <div className="bg-white border border-gray-200 rounded-xl p-5">
                   <h3 className="font-medium text-gray-700 mb-4">Depth Profile</h3>
-                  <DepthPlot rows={processed.plotRows} />
+                  <DepthPlot rows={processed.plotRows} siteName={processed.siteName} />
                 </div>
               )}
             </div>
