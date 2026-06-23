@@ -5,6 +5,8 @@ import { SampleReview, type SampleAction, type ReviewState } from './components/
 import { ResultsTable, type ResultRow } from './components/ResultsTable'
 import { DepthPlot, type PlotRow } from './components/DepthPlot'
 import { DownloadPage } from './components/DownloadPage'
+import { SessionManager } from './components/SessionManager'
+import { saveSession, type SavedSession } from './lib/sessions'
 
 const IS_ELECTRON = import.meta.env.VITE_BUILD_TARGET === 'electron'
 import type { ParsedFile } from './lib/parser'
@@ -105,6 +107,7 @@ export default function App() {
   const [reviewState, setReviewState] = useState<ReviewState | undefined>()
   const [processed, setProcessed] = useState<ProcessedData | undefined>()
   const [showHelp, setShowHelp] = useState(false)
+  const [sessionSaved, setSessionSaved] = useState(false)
 
   const handleFilesLoaded = (loaded: ParsedFile[]) => {
     setFiles(loaded)
@@ -114,6 +117,7 @@ export default function App() {
 
   const handleProceed = (state: ReviewState) => {
     setReviewState(state)
+    setSessionSaved(false)
     const data = processFiles(files, state.siteName, state.actions, state.runDepthOverrides)
     setProcessed(data)
     setStep('results')
@@ -125,6 +129,26 @@ export default function App() {
     setReviewState(undefined)
     setProcessed(undefined)
     setStep('upload')
+  }
+
+  const handleSaveSession = () => {
+    if (!reviewState) return
+    saveSession(files, reviewState)
+    setSessionSaved(true)
+  }
+
+  const handleLoadSession = (session: SavedSession) => {
+    setFiles(session.files)
+    setReviewState(session.reviewState)
+    const data = processFiles(
+      session.files,
+      session.reviewState.siteName,
+      session.reviewState.actions,
+      session.reviewState.runDepthOverrides,
+    )
+    setProcessed(data)
+    setStep('results')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleExport = () => {
@@ -187,7 +211,12 @@ export default function App() {
         <div key={step} className="step-enter">
           {step === 'download' && <DownloadPage onBack={() => setStep('upload')} />}
 
-          {step === 'upload' && <FileUpload onFilesLoaded={handleFilesLoaded} />}
+          {step === 'upload' && (
+            <>
+              <FileUpload onFilesLoaded={handleFilesLoaded} />
+              <SessionManager onLoad={handleLoadSession} />
+            </>
+          )}
 
           {step === 'review' && (
             <SampleReview
@@ -218,6 +247,16 @@ export default function App() {
                     className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors"
                   >
                     ← Back
+                  </button>
+                  <button
+                    onClick={handleSaveSession}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      sessionSaved
+                        ? 'border border-green-300 text-green-600 bg-green-50'
+                        : 'border border-indigo-300 text-indigo-600 hover:bg-indigo-50'
+                    }`}
+                  >
+                    {sessionSaved ? 'Saved!' : 'Save Session'}
                   </button>
                   <button
                     onClick={handleExport}
