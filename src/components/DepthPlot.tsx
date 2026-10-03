@@ -23,13 +23,7 @@ interface Props {
 }
 
 type MetricKey =
-  | 'irslNet'
-  | 'irslFront'
-  | 'irslDepletion'
-  | 'oslNet'
-  | 'oslFront'
-  | 'oslDepletion'
-  | 'irslOsl'
+  'irslNet' | 'irslFront' | 'irslDepletion' | 'oslNet' | 'oslFront' | 'oslDepletion' | 'irslOsl'
 
 const METRICS: { key: MetricKey; label: string }[] = [
   { key: 'irslNet', label: 'IRSL Net' },
