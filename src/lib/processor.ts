@@ -45,11 +45,8 @@ function calcSignalMetrics(
 ): SignalMetrics {
   // Net signal: sig1 + sig2 − 2·dark1 − 2·dark2
   const netVal = sig1.count + sig2.count - 2 * dark1.count - 2 * dark2.count
-  // Analytical propogation results in sqrt(s1^2 + s2^2 + 4d1^2 + 4d2^2) but the
-  // formula in common use is used here instead.
-  // TODO: check if this is an error.
   const netErr = Math.sqrt(
-    sq(sig1.error) + sq(sig2.error) + 2 * sq(dark1.error) + 2 * sq(dark2.error),
+    sq(sig1.error) + sq(sig2.error) + 4 * sq(dark1.error) + 4 * sq(dark2.error),
   )
 
   // Front: sig1 − sig2, error via Poisson statistics
